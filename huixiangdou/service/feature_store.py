@@ -51,7 +51,7 @@ class FeatureStore:
                  embedder: Embedder,
                  config_path: str = 'config.ini',
                  language: str = 'zh',
-                 chunk_size=832,
+                 chunk_size=900,
                  analyze_reject=False,
                  rejecter_naive_splitter=False,
                  override=False) -> None:
@@ -109,7 +109,7 @@ class FeatureStore:
             length += len(c.content_or_path)
         return chunks, length
 
-    def build_dense(self, files: list, work_dir: str):
+    def build_dense(self, files: list, work_dir: str, markdown_as_txt: bool=False):
         """Extract the features required for the response pipeline based on the
         document."""
         feature_dir = os.path.join(work_dir, 'db_dense')
@@ -124,7 +124,8 @@ class FeatureStore:
                 continue
             metadata = {'source': file.origin, 'read': file.copypath}
 
-            if file._type == 'md':
+            # If you need higher rejection precision, set `markdown_as_txt` as True
+            if not markdown_as_txt and file._type == 'md':
                 md_chunks, md_length = self.parse_markdown(file=file,
                                                            metadata=metadata)
                 chunks += md_chunks
@@ -150,19 +151,7 @@ class FeatureStore:
             return
 
         self.analyze(filtered_chunks)
-
-        # with open('refactor.json', 'w') as f:
-        #     pass
-
-        # with open('refactor.jsonl', 'a') as f:
-        #     for c in filtered_chunks:
-        #         json_str = json.dumps({'data': c.content_or_path}, ensure_ascii=False)
-        #         f.write(json_str)
-        #         f.write('\n')
-
-        Faiss.save_local(folder_path=feature_dir,
-                         chunks=filtered_chunks,
-                         embedder=self.embedder)
+        Faiss.save_local(folder_path=feature_dir, chunks=filtered_chunks, embedder=self.embedder)
 
     def analyze(self, chunks: List[Chunk]):
         """Output documents length mean, median and histogram."""
